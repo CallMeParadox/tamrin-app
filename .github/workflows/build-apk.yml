@@ -1,0 +1,64 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Scaffold native Android wrapper
+        run: |
+          cp pubspec.yaml pubspec.yaml.bak
+          flutter create . --org com.paradox.tamrin --platforms android --project-name tamrin_app
+          mv pubspec.yaml.bak pubspec.yaml
+          flutter pub get
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tamrin-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "اپلیکیشن تمرین - نسخه نصبی v1.0.0"
+          body: |
+            ## نسخه اول اپلیکیشن تمرین بدنسازی (Tamrin App)
+            - فایل نصبی مستقیم: `app-release.apk`
+            - پشتیبانی از زبان فارسی و راست‌به‌چپ (RTL)
+            - دیتابیس حرکات تمرینی همراه با عضلات هدف و نکات بیومکانیکی
+            - لاگر ست‌ها با انواع ست (عادی، گرم‌کردن W، دراپ‌ست D، تا مرز شکست F)
+            - محاسبه‌گر ۱RM با فرمول Epley
+            - محاسبه‌گر صفحات وزنه هالتر (Plate Calculator)
+            - تایمر استراحت بین ست‌ها
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
